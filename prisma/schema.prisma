@@ -1,0 +1,837 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id                  String    @id @default(cuid())
+  email               String    @unique
+  name                String?
+  passwordHash        String?
+  googleId            String?   @unique
+  role                String    @default("STUDENT")
+  isPremium           Boolean   @default(false)
+  isEmailVerified     Boolean   @default(false)
+  isActive            Boolean   @default(true)
+  twoFactorSecret     String?
+  twoFactorEnabled    Boolean   @default(false)
+  failedLoginAttempts Int       @default(0)
+  lockedUntil         DateTime?
+  premiumUntil        DateTime?
+  referralCode        String?   @unique
+  createdAt           DateTime  @default(now())
+  updatedAt           DateTime  @updatedAt
+
+  refreshTokens         RefreshToken[]
+  profile               UserProfile?
+  sessions              Session[]
+  attempts              Attempt[]
+  enrollments           Enrollment[]
+  chapterProgress       ChapterProgress[]
+  userNotes             UserNote[]
+  bookmarks             Bookmark[]
+  comments              Comment[]
+  testAttempts          TestAttempt[]
+  voiceRecordings       VoiceRecording[]
+  vocabulary            UserVocabulary[]
+  emailAttempts         EmailWritingAttempt[]
+  pronunciationAttempts PronunciationAttempt[]
+  interviewSessions     InterviewSession[]
+  interviewExperiences  CompanyInterviewExperience[]
+  resumes               Resume[]
+  coverLetters          CoverLetter[]
+  mentorReviews         ResumeReview[]               @relation("MentorReviews")
+  jobAlerts             JobAlert[]
+  savedJobs             SavedJob[]
+  applications          Application[]
+  successStories        SuccessStory[]
+  payments              Payment[]
+  referralsMade         Referral[]                   @relation("Referrer")
+  referredBy            Referral?                    @relation("Referred")
+}
+
+model RefreshToken {
+  id        String   @id @default(cuid())
+  token     String   @unique
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  expiresAt DateTime
+  isRevoked Boolean  @default(false)
+  createdAt DateTime @default(now())
+}
+
+model Session {
+  id           String   @id @default(cuid())
+  userId       String
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  ipAddress    String
+  userAgent    String
+  lastActiveAt DateTime @default(now())
+  createdAt    DateTime @default(now())
+}
+
+model UserProfile {
+  id             String           @id @default(cuid())
+  userId         String           @unique
+  user           User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+  phone          String?
+  avatarUrl      String?
+  bio            String?
+  location       String?
+  linkedinUrl    String?
+  githubUrl      String?
+  portfolioUrl   String?
+  college        String?
+  degree         String? // e.g. "B.Tech", "BCA", "MCA"
+  branch         String? // e.g. "Computer Science", "Information Technology"
+  graduationYear Int?
+  cgpa           Float?
+  skills         String // Array of skill names
+  targetRoles    TargetRole[]
+  workExperience WorkExperience[]
+  projects       Project[]
+  certifications Certification[]
+  onboardingStep Int              @default(0)
+  onboardingDone Boolean          @default(false)
+  profileScore   Int              @default(0)
+
+  // Scores
+  resumeUrl               String?
+  technicalScore          Float   @default(0)
+  grammarScore            Float   @default(0)
+  aptitudeScore           Float   @default(0)
+  placementReadinessScore Float   @default(0)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  resumeReports        ResumeReport[]
+  communicationReports CommunicationReport[]
+  skillEndorsements    SkillEndorsement[]
+  achievementBadges    AchievementBadge[]
+
+  // Learning Streak tracking
+  currentStreak    Int       @default(0)
+  longestStreak    Int       @default(0)
+  lastActivityDate DateTime?
+}
+
+model TargetRole {
+  id        String      @id @default(cuid())
+  profileId String
+  profile   UserProfile @relation(fields: [profileId], references: [id], onDelete: Cascade)
+  role      String // e.g. "Software Engineer", "React Developer"
+}
+
+model WorkExperience {
+  id          String      @id @default(cuid())
+  profileId   String
+  profile     UserProfile @relation(fields: [profileId], references: [id], onDelete: Cascade)
+  company     String
+  role        String
+  startDate   DateTime
+  endDate     DateTime?
+  isCurrent   Boolean     @default(false)
+  description String?
+}
+
+model Project {
+  id          String      @id @default(cuid())
+  profileId   String
+  profile     UserProfile @relation(fields: [profileId], references: [id], onDelete: Cascade)
+  title       String
+  description String
+  techStack   String
+  liveUrl     String?
+  repoUrl     String?
+}
+
+model Certification {
+  id            String      @id @default(cuid())
+  profileId     String
+  profile       UserProfile @relation(fields: [profileId], references: [id], onDelete: Cascade)
+  name          String
+  issuer        String
+  issuedDate    DateTime
+  credentialUrl String?
+}
+
+model SkillEndorsement {
+  id         String      @id @default(cuid())
+  profileId  String
+  profile    UserProfile @relation(fields: [profileId], references: [id], onDelete: Cascade)
+  skill      String
+  endorserId String // The User ID who endorsed this skill
+  createdAt  DateTime    @default(now())
+}
+
+model AchievementBadge {
+  id          String      @id @default(cuid())
+  profileId   String
+  profile     UserProfile @relation(fields: [profileId], references: [id], onDelete: Cascade)
+  name        String
+  description String?
+  iconUrl     String?
+  awardedAt   DateTime    @default(now())
+}
+
+model CommunicationReport {
+  id              String      @id @default(cuid())
+  profileId       String
+  profile         UserProfile @relation(fields: [profileId], references: [id], onDelete: Cascade)
+  fluencyScore    Int
+  confidenceScore Int
+  speakingSpeed   Int // words per minute
+  fillerWords     Int // count of filler words
+  clarityScore    Int
+  suggestions     String? // JSON string
+  createdAt       DateTime    @default(now())
+}
+
+model ResumeReport {
+  id              String      @id @default(cuid())
+  profileId       String
+  profile         UserProfile @relation(fields: [profileId], references: [id], onDelete: Cascade)
+  atsScore        Int
+  missingKeywords String? // JSON string
+  grammarScore    Int
+  suggestions     String? // JSON string
+  fileName        String
+  createdAt       DateTime    @default(now())
+}
+
+model Assessment {
+  id          String     @id @default(cuid())
+  title       String
+  category    String // Aptitude, Grammar, Technical, Communication
+  description String?
+  duration    Int // in minutes
+  createdAt   DateTime   @default(now())
+  questions   Question[]
+  attempts    Attempt[]
+}
+
+model Question {
+  id           String     @id @default(cuid())
+  assessmentId String
+  assessment   Assessment @relation(fields: [assessmentId], references: [id], onDelete: Cascade)
+  type         String // MultipleChoice, VoiceResponse, WrittenResponse
+  content      String
+  options      Option[]
+  correctOptId String? // ID of the correct option for auto-grading
+  points       Int        @default(1)
+}
+
+model Option {
+  id         String   @id @default(cuid())
+  questionId String
+  question   Question @relation(fields: [questionId], references: [id], onDelete: Cascade)
+  text       String
+}
+
+model Attempt {
+  id           String     @id @default(cuid())
+  userId       String
+  user         User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+  assessmentId String
+  assessment   Assessment @relation(fields: [assessmentId], references: [id], onDelete: Cascade)
+  score        Float      @default(0)
+  status       String     @default("IN_PROGRESS") // COMPLETED
+  startedAt    DateTime   @default(now())
+  completedAt  DateTime?
+}
+
+// ==========================================
+// Phase 3: PREPARATION MANAGEMENT SYSTEM
+// ==========================================
+
+model Company {
+  id                   String                       @id @default(cuid())
+  name                 String                       @unique // "TCS", "Infosys", "Wipro"
+  logoUrl              String?
+  description          String?
+  website              String?
+  courses              Course[]
+  jobs                 Job[] // Uncommented for Phase 8
+  roadmap              Roadmap?
+  interviewExperiences CompanyInterviewExperience[]
+  // For future phases
+}
+
+model Course {
+  id           String       @id @default(cuid())
+  companyId    String
+  company      Company      @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  title        String
+  description  String
+  isPremium    Boolean      @default(false)
+  thumbnailUrl String?
+  modules      Module[]
+  enrollments  Enrollment[]
+  createdAt    DateTime     @default(now())
+}
+
+model Module {
+  id       String    @id @default(cuid())
+  courseId String
+  course   Course    @relation(fields: [courseId], references: [id], onDelete: Cascade)
+  title    String
+  order    Int
+  chapters Chapter[]
+}
+
+model Chapter {
+  id         String            @id @default(cuid())
+  moduleId   String
+  module     Module            @relation(fields: [moduleId], references: [id], onDelete: Cascade)
+  title      String
+  order      Int
+  isPremium  Boolean           @default(false)
+  lessons    Lesson[]
+  notes      UserNote[]
+  bookmarks  Bookmark[]
+  progress   ChapterProgress[]
+  // For Discussion Forum (Phase 3 missing features)
+  comments   Comment[]
+  flashcards Flashcard[]
+}
+
+model Lesson {
+  id          String  @id @default(cuid())
+  chapterId   String
+  chapter     Chapter @relation(fields: [chapterId], references: [id], onDelete: Cascade)
+  title       String
+  order       Int
+  contentType String // PDF, VIDEO, TEXT, QUIZ
+  contentUrl  String? // S3 URL for PDF/video
+  textContent String? // For text lessons (Markdown)
+}
+
+model Enrollment {
+  id          String    @id @default(cuid())
+  userId      String
+  user        User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  courseId    String
+  course      Course    @relation(fields: [courseId], references: [id], onDelete: Cascade)
+  enrolledAt  DateTime  @default(now())
+  completedAt DateTime?
+
+  @@unique([userId, courseId])
+}
+
+model ChapterProgress {
+  id          String    @id @default(cuid())
+  userId      String
+  user        User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  chapterId   String
+  chapter     Chapter   @relation(fields: [chapterId], references: [id], onDelete: Cascade)
+  isCompleted Boolean   @default(false)
+  completedAt DateTime?
+  timeSpent   Int       @default(0) // seconds
+
+  @@unique([userId, chapterId])
+}
+
+model UserNote {
+  id        String   @id @default(cuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  chapterId String
+  chapter   Chapter  @relation(fields: [chapterId], references: [id], onDelete: Cascade)
+  content   String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model Bookmark {
+  id        String   @id @default(cuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  chapterId String
+  chapter   Chapter  @relation(fields: [chapterId], references: [id], onDelete: Cascade)
+  createdAt DateTime @default(now())
+
+  @@unique([userId, chapterId])
+}
+
+// Missing Features Models
+model Roadmap {
+  id        String  @id @default(cuid())
+  companyId String  @unique
+  company   Company @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  title     String
+  content   String // JSON string of timeline steps
+}
+
+model Comment {
+  id        String    @id @default(cuid())
+  userId    String
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  chapterId String
+  chapter   Chapter   @relation(fields: [chapterId], references: [id], onDelete: Cascade)
+  content   String
+  createdAt DateTime  @default(now())
+  parentId  String? // For threaded replies
+  parent    Comment?  @relation("CommentReplies", fields: [parentId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  replies   Comment[] @relation("CommentReplies")
+}
+
+model Flashcard {
+  id        String  @id @default(cuid())
+  chapterId String
+  chapter   Chapter @relation(fields: [chapterId], references: [id], onDelete: Cascade)
+  front     String
+  back      String
+}
+
+// ==========================================
+// Phase 4: ASSESSMENT ENGINE
+// ==========================================
+
+model QuestionBank {
+  id             String         @id @default(cuid())
+  category       String
+  topic          String
+  difficulty     String
+  type           String
+  question       String
+  options        String // JSON string: Array of { id, text }
+  correctAnswers String // Array of option IDs
+  explanation    String?
+  tags           String
+  isPremium      Boolean        @default(false)
+  createdAt      DateTime       @default(now())
+  testQuestions  TestQuestion[]
+}
+
+model Test {
+  id              String         @id @default(cuid())
+  title           String
+  description     String?
+  category        String
+  companyId       String?
+  durationMins    Int
+  totalMarks      Int
+  isPremium       Boolean        @default(false)
+  isPublished     Boolean        @default(false)
+  isWeeklyContest Boolean        @default(false) // Missing Feature: Weekly Aptitude Contest
+  questions       TestQuestion[]
+  attempts        TestAttempt[]
+  createdAt       DateTime       @default(now())
+}
+
+model TestQuestion {
+  id            String       @id @default(cuid())
+  testId        String
+  test          Test         @relation(fields: [testId], references: [id], onDelete: Cascade)
+  questionId    String
+  question      QuestionBank @relation(fields: [questionId], references: [id], onDelete: Cascade)
+  order         Int
+  marks         Int          @default(1)
+  negativeMarks Float        @default(0)
+}
+
+model TestAttempt {
+  id                     String          @id @default(cuid())
+  userId                 String
+  user                   User            @relation(fields: [userId], references: [id], onDelete: Cascade)
+  testId                 String
+  test                   Test            @relation(fields: [testId], references: [id], onDelete: Cascade)
+  status                 String          @default("IN_PROGRESS")
+  startedAt              DateTime        @default(now())
+  submittedAt            DateTime?
+  score                  Float?
+  totalMarks             Int?
+  percentage             Float?
+  timeTaken              Int? // seconds
+  isFlaggedForPlagiarism Boolean         @default(false) // Missing Feature: Test Plagiarism Detection
+  answers                AttemptAnswer[]
+  analytics              TestAnalytics?
+}
+
+model AttemptAnswer {
+  id               String      @id @default(cuid())
+  attemptId        String
+  attempt          TestAttempt @relation(fields: [attemptId], references: [id], onDelete: Cascade)
+  questionId       String
+  selectedOptions  String
+  isCorrect        Boolean
+  marksAwarded     Float
+  timeSpent        Int // seconds on this question
+  flaggedForReview Boolean     @default(false)
+}
+
+model TestAnalytics {
+  id                  String      @id @default(cuid())
+  attemptId           String      @unique
+  attempt             TestAttempt @relation(fields: [attemptId], references: [id], onDelete: Cascade)
+  correctCount        Int
+  wrongCount          Int
+  skippedCount        Int
+  topicWiseBreakdown  String // JSON: { topic: { correct, wrong, total } }
+  difficultyBreakdown String // JSON: { easy/medium/hard: { correct, wrong } }
+  timePerQuestion     String // JSON: { questionId: seconds }
+}
+
+// ==========================================
+// Phase 5: COMMUNICATION & ENGLISH
+// ==========================================
+
+model VoiceRecording {
+  id           String   @id @default(cuid())
+  userId       String
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  audioUrl     String
+  transcript   String?
+  durationSecs Int
+  analysis     String? // JSON string: Full analysis result
+  createdAt    DateTime @default(now())
+}
+
+model VocabularyWord {
+  id              String           @id @default(cuid())
+  word            String           @unique
+  definition      String
+  exampleSentence String
+  synonyms        String
+  antonyms        String
+  difficulty      String
+  userProgress    UserVocabulary[]
+}
+
+model UserVocabulary {
+  id          String         @id @default(cuid())
+  userId      String
+  user        User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+  wordId      String
+  word        VocabularyWord @relation(fields: [wordId], references: [id], onDelete: Cascade)
+  status      String         @default("NEW")
+  nextReview  DateTime       @default(now())
+  reviewCount Int            @default(0)
+
+  @@unique([userId, wordId])
+}
+
+// Missing Feature: Email Writing Grader
+model EmailWritingAttempt {
+  id          String   @id @default(cuid())
+  userId      String
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  scenario    String
+  userContent String
+  score       Float
+  feedback    String? // JSON string containing tone, structure, clarity analysis
+  createdAt   DateTime @default(now())
+}
+
+// Missing Feature: Pronunciation Practice
+model PronunciationAttempt {
+  id         String   @id @default(cuid())
+  userId     String
+  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  targetWord String
+  audioUrl   String
+  score      Float // Based on audio waveform comparison (mocked for now)
+  createdAt  DateTime @default(now())
+}
+
+// ==========================================
+// Phase 6: MOCK INTERVIEW SYSTEM
+// ==========================================
+
+model InterviewSession {
+  id           String              @id @default(cuid())
+  userId       String
+  user         User                @relation(fields: [userId], references: [id], onDelete: Cascade)
+  type         String
+  companyId    String?
+  status       String              @default("IN_PROGRESS")
+  startedAt    DateTime            @default(now())
+  completedAt  DateTime?
+  overallScore Float?
+  responses    InterviewResponse[]
+  report       InterviewReport?
+
+  // Missing Feature: Interview Recording Playback
+  fullRecordingUrl String?
+}
+
+model InterviewResponse {
+  id         String            @id @default(cuid())
+  sessionId  String
+  session    InterviewSession  @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+  questionId String
+  question   InterviewQuestion @relation(fields: [questionId], references: [id], onDelete: Cascade)
+  textAnswer String?
+  audioUrl   String?
+  transcript String?
+  evaluation String? // JSON: Per-question evaluation scores
+  timeTaken  Int? // seconds
+
+  // Missing Feature: Confidence Meter
+  confidenceScore Float?
+}
+
+model InterviewQuestion {
+  id           String              @id @default(cuid())
+  type         String
+  companyId    String?
+  question     String
+  sampleAnswer String?
+  keyPoints    String // Keywords expected in a good answer
+  difficulty   String
+  responses    InterviewResponse[]
+}
+
+model InterviewReport {
+  id           String           @id @default(cuid())
+  sessionId    String           @unique
+  session      InterviewSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+  strengths    String
+  weaknesses   String
+  improvements String
+  totalScore   Float
+  reportData   String // JSON: Full detailed report
+  generatedAt  DateTime         @default(now())
+}
+
+// Missing Feature: Live Peer Mock Interview
+model PeerInterviewSession {
+  id          String   @id @default(cuid())
+  hostUserId  String
+  peerUserId  String?
+  scheduledAt DateTime
+  status      String   @default("PENDING") // PENDING, ONGOING, COMPLETED
+  createdAt   DateTime @default(now())
+}
+
+model CompanyInterviewExperience {
+  id         String   @id @default(cuid())
+  userId     String
+  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  companyId  String
+  company    Company  @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  role       String
+  status     String // SELECTED, REJECTED
+  questions  String
+  experience String?
+  createdAt  DateTime @default(now())
+}
+
+// ==========================================
+// Phase 7: RESUME & CAREER CENTER
+// ==========================================
+
+model Resume {
+  id             String    @id @default(cuid())
+  userId         String
+  user           User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  title          String    @default("My Resume")
+  templateId     String    @default("classic")
+  data           String // JSON string: All resume section data
+  atsScore       Float?
+  lastExportedAt DateTime?
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+
+  versions ResumeVersion[]
+  reviews  ResumeReview[]
+}
+
+// Missing Feature: Resume Version History
+model ResumeVersion {
+  id         String   @id @default(cuid())
+  resumeId   String
+  resume     Resume   @relation(fields: [resumeId], references: [id], onDelete: Cascade)
+  data       String // JSON snapshot of data
+  versionNum Int
+  createdAt  DateTime @default(now())
+}
+
+// Missing Feature: Resume Review by Mentor
+model ResumeReview {
+  id        String   @id @default(cuid())
+  resumeId  String
+  resume    Resume   @relation(fields: [resumeId], references: [id], onDelete: Cascade)
+  mentorId  String
+  mentor    User     @relation("MentorReviews", fields: [mentorId], references: [id])
+  comments  String // JSON string: inline comments mapping to sections
+  status    String   @default("PENDING") // PENDING, REVIEWED
+  createdAt DateTime @default(now())
+}
+
+model CoverLetter {
+  id          String   @id @default(cuid())
+  userId      String
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  companyName String
+  jobTitle    String
+  content     String
+  createdAt   DateTime @default(now())
+}
+
+// ==========================================
+// Phase 8: JOB DISCOVERY PLATFORM
+// ==========================================
+
+model Job {
+  id             String    @id @default(cuid())
+  companyId      String
+  company        Company   @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  title          String
+  location       String
+  experienceMin  Int? // years
+  experienceMax  Int? // years
+  requiredSkills String
+  description    String
+  applyUrl       String
+  postedAt       DateTime?
+  expiresAt      DateTime?
+  isActive       Boolean   @default(true) // Set to false if expiry detection marks it gone
+  contentHash    String    @unique // For duplicate detection
+  crawledAt      DateTime  @default(now())
+
+  // Missing Feature: Salary Estimation
+  estimatedSalaryMin Int?
+  estimatedSalaryMax Int?
+
+  applications Application[]
+  savedBy      SavedJob[]
+}
+
+model JobAlert {
+  id        String   @id @default(cuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  keywords  String
+  locations String
+  companies String
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now())
+}
+
+model SavedJob {
+  id        String   @id @default(cuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  jobId     String
+  job       Job      @relation(fields: [jobId], references: [id], onDelete: Cascade)
+  createdAt DateTime @default(now())
+
+  @@unique([userId, jobId])
+}
+
+// ==========================================
+// Phase 9: APPLICATION TRACKER & STORIES
+// ==========================================
+
+model Application {
+  id          String        @id @default(cuid())
+  userId      String
+  user        User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  jobId       String?
+  job         Job?          @relation(fields: [jobId], references: [id], onDelete: SetNull)
+  companyName String // Manual entry if job not from platform
+  role        String
+  status      String        @default("WISHLIST")
+  appliedDate DateTime?
+  notes       String?
+  resumeUsed  String? // Resume ID from Phase 7
+  activityLog AppActivity[]
+  createdAt   DateTime      @default(now())
+  updatedAt   DateTime      @updatedAt
+
+  // Missing Feature Relations
+  interviewRounds InterviewRound[]
+  offer           JobOffer?
+}
+
+model AppActivity {
+  id            String      @id @default(cuid())
+  applicationId String
+  application   Application @relation(fields: [applicationId], references: [id], onDelete: Cascade)
+  fromStatus    String?
+  toStatus      String
+  note          String?
+  timestamp     DateTime    @default(now())
+}
+
+// Success Stories Model
+model SuccessStory {
+  id              String   @id @default(cuid())
+  userId          String
+  user            User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  studentName     String
+  photoUrl        String?
+  companyName     String
+  companyLogoUrl  String?
+  role            String
+  packageLpa      Float
+  graduationYear  Int
+  college         String
+  preparation     String // text
+  resourcesUsed   String // array of strings
+  tips            String // text
+  timeTakenMonths Int
+  isApproved      Boolean  @default(false)
+  reactions       Int      @default(0) // "This story inspired me"
+  createdAt       DateTime @default(now())
+}
+
+// Missing Feature: Interview Round Tracker
+model InterviewRound {
+  id            String      @id @default(cuid())
+  applicationId String
+  application   Application @relation(fields: [applicationId], references: [id], onDelete: Cascade)
+  roundNumber   Int
+  title         String // e.g. "Round 1 - DSA"
+  status        String      @default("SCHEDULED") // SCHEDULED, PASSED, FAILED
+  scheduledAt   DateTime?
+  notes         String?
+  createdAt     DateTime    @default(now())
+}
+
+// Missing Feature: Offer Comparison Tool
+model JobOffer {
+  id            String      @id @default(cuid())
+  applicationId String      @unique
+  application   Application @relation(fields: [applicationId], references: [id], onDelete: Cascade)
+  ctc           Float
+  location      String
+  joiningDate   DateTime?
+  benefits      String? // JSON string or comma-separated list
+  createdAt     DateTime    @default(now())
+}
+
+// ==========================================
+// Phase 10: PREMIUM & AFFILIATE SYSTEM
+// ==========================================
+
+model Payment {
+  id                String   @id @default(cuid())
+  userId            String
+  user              User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  amount            Float
+  currency          String   @default("INR")
+  razorpayOrderId   String   @unique
+  razorpayPaymentId String?  @unique
+  razorpaySignature String?
+  status            String   @default("PENDING") // PENDING, SUCCESS, FAILED
+  planType          String // MONTHLY, SIX_MONTHS
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+}
+
+model Referral {
+  id             String   @id @default(cuid())
+  referrerId     String
+  referrer       User     @relation("Referrer", fields: [referrerId], references: [id], onDelete: Cascade)
+  referredUserId String   @unique
+  referredUser   User     @relation("Referred", fields: [referredUserId], references: [id], onDelete: Cascade)
+  status         String   @default("PENDING") // PENDING, CONVERTED (when upgraded to premium)
+  createdAt      DateTime @default(now())
+}
